@@ -1,0 +1,9 @@
+﻿  dllmain.cpp
+C:\Users\19266\Desktop\15Packing\stubdll\stubdll\dllmain.cpp(47,21): warning C4101: “hUser32”: 未引用的局部变量
+    正在创建库 ..\..\bin\stubdll.lib 和对象 ..\..\bin\stubdll.exp
+  正在生成代码
+  Previous IPDB not found, fall back to full compilation.
+  All 3 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  已完成代码的生成
+dllmain.obj : warning LNK4254: 节“.data”(C0000040)合并到具有不同特性的“.text”(60000020)
+  stubdll.vcxproj -> C:\Users\19266\Desktop\15Packing\bin\stubdll.dll

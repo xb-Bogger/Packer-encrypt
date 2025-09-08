@@ -1,4 +1,8 @@
 #include <Windows.h>
+#include <CL/cl.h>
+#include <vector>
+#include <string>
+#include <iostream>
 
 typedef struct _StubConf
 {
@@ -181,4 +185,169 @@ void LoadStub(_In_ StubInfo* pstub) {
 	pstub->dllbase = (char*)LoadLibraryEx(L"stubdll.dll", NULL, DONT_RESOLVE_DLL_REFERENCES);
 	pstub->pfnStart = (DWORD)GetProcAddress((HMODULE)pstub->dllbase, "Start");
 	pstub->pStubConf = (StubConf*)GetProcAddress((HMODULE)pstub->dllbase, "g_conf");
+}
+
+// 简单的 OpenCL kernel：对 data[i] ^= key
+static const char* kXorKernelSrc = R"CLC(
+__kernel void xor_encrypt(__global uchar* data,
+                          const uint offset,
+                          const uint len,
+                          const uchar key) {
+    size_t gid = get_global_id(0);
+    if (gid < len) {
+        data[offset + gid] ^= key;
+    }
+}
+)CLC";
+
+static bool buildProgram(cl_context ctx, cl_device_id dev, const char* src, cl_program* out_prog, std::string* build_log) {
+    cl_int err = CL_SUCCESS;
+    const char* sources[] = { src };
+    size_t lengths[] = { strlen(src) };
+    cl_program prog = clCreateProgramWithSource(ctx, 1, sources, lengths, &err);
+    if (err != CL_SUCCESS) return false;
+    err = clBuildProgram(prog, 1, &dev, nullptr, nullptr, nullptr);
+    if (err != CL_SUCCESS) {
+        // 获取 build log
+        size_t log_size = 0;
+        clGetProgramBuildInfo(prog, dev, CL_PROGRAM_BUILD_LOG, 0, nullptr, &log_size);
+        std::string log(log_size, '\0');
+        if (log_size) {
+            clGetProgramBuildInfo(prog, dev, CL_PROGRAM_BUILD_LOG, log_size, &log[0], nullptr);
+        }
+        if (build_log) *build_log = log;
+        clReleaseProgram(prog);
+        return false;
+    }
+    *out_prog = prog;
+    return true;
+}
+
+bool EncryGPU(char* hpe, StubInfo& pstub) {
+    // 1) 找到入口所在节，与原 Encry 对齐
+    PIMAGE_SECTION_HEADER section = GetSectionByEntryPoint(hpe, &pstub);
+    if (!section) return false;
+    BYTE* target = section->PointerToRawData + (BYTE*)hpe;
+    DWORD target_size = section->Misc.VirtualSize ? section->Misc.VirtualSize : section->SizeOfRawData;
+    if (target_size == 0) return false;
+
+    const unsigned char key = 0x99; // 与原逻辑一致
+
+    // 2) OpenCL 初始化（选择一个 GPU，若没有则选 CPU）
+    cl_int err = CL_SUCCESS;
+    cl_uint num_platforms = 0;
+    err = clGetPlatformIDs(0, nullptr, &num_platforms);
+    if (err != CL_SUCCESS || num_platforms == 0) return false;
+
+    std::vector<cl_platform_id> platforms(num_platforms);
+    clGetPlatformIDs(num_platforms, platforms.data(), nullptr);
+
+    cl_device_id chosen_dev = nullptr;
+    cl_platform_id chosen_plat = nullptr;
+
+    for (auto plat : platforms) {
+        cl_uint num_devs = 0;
+        // 优先 GPU
+        if (clGetDeviceIDs(plat, CL_DEVICE_TYPE_GPU, 1, &chosen_dev, &num_devs) == CL_SUCCESS && num_devs > 0) {
+            chosen_plat = plat;
+            break;
+        }
+        // 退而求其次 CPU
+        if (clGetDeviceIDs(plat, CL_DEVICE_TYPE_CPU, 1, &chosen_dev, &num_devs) == CL_SUCCESS && num_devs > 0) {
+            chosen_plat = plat;
+            break;
+        }
+    }
+    if (!chosen_dev) return false;
+
+    char name[128];
+    clGetDeviceInfo(chosen_dev, CL_DEVICE_NAME, sizeof(name), name, NULL);
+    printf("Using OpenCL device: %s\n", name);
+
+    cl_context ctx = clCreateContext(nullptr, 1, &chosen_dev, nullptr, nullptr, &err);
+    if (err != CL_SUCCESS) return false;
+
+#if CL_TARGET_OPENCL_VERSION >= 200
+    const cl_queue_properties props[] = { 0 };
+    cl_command_queue queue = clCreateCommandQueueWithProperties(ctx, chosen_dev, props, &err);
+#else
+    cl_command_queue queue = clCreateCommandQueue(ctx, chosen_dev, 0, &err);
+#endif
+    if (err != CL_SUCCESS) { clReleaseContext(ctx); return false; }
+
+    cl_program prog = nullptr;
+    std::string build_log;
+    if (!buildProgram(ctx, chosen_dev, kXorKernelSrc, &prog, &build_log)) {
+        // 可根据需要打印 build_log 进行调试
+        if (!build_log.empty()) {
+            // std::cerr << build_log << std::endl;
+        }
+        clReleaseCommandQueue(queue);
+        clReleaseContext(ctx);
+        return false;
+    }
+
+    cl_kernel kernel = clCreateKernel(prog, "xor_encrypt", &err);
+    if (err != CL_SUCCESS) {
+        clReleaseProgram(prog);
+        clReleaseCommandQueue(queue);
+        clReleaseContext(ctx);
+        return false;
+    }
+
+    // 3) 将待加密的节数据放入 OpenCL Buffer
+    // 为了避免复制两次，可以直接创建 READ_WRITE | COPY_HOST_PTR
+    cl_mem buf = clCreateBuffer(ctx, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, target_size, target, &err);
+    if (err != CL_SUCCESS) {
+        clReleaseKernel(kernel);
+        clReleaseProgram(prog);
+        clReleaseCommandQueue(queue);
+        clReleaseContext(ctx);
+        return false;
+    }
+
+    // 4) 设置参数并执行
+    const cl_uint offset = 0;
+    const cl_uint len = static_cast<cl_uint>(target_size);
+    err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &buf);
+    err |= clSetKernelArg(kernel, 1, sizeof(cl_uint), &offset);
+    err |= clSetKernelArg(kernel, 2, sizeof(cl_uint), &len);
+    err |= clSetKernelArg(kernel, 3, sizeof(unsigned char), &key);
+    if (err != CL_SUCCESS) {
+        clReleaseMemObject(buf);
+        clReleaseKernel(kernel);
+        clReleaseProgram(prog);
+        clReleaseCommandQueue(queue);
+        clReleaseContext(ctx);
+        return false;
+    }
+
+    size_t global = len;
+    err = clEnqueueNDRangeKernel(queue, kernel, 1, nullptr, &global, nullptr, 0, nullptr, nullptr);
+    if (err != CL_SUCCESS) {
+        clReleaseMemObject(buf);
+        clReleaseKernel(kernel);
+        clReleaseProgram(prog);
+        clReleaseCommandQueue(queue);
+        clReleaseContext(ctx);
+        return false;
+    }
+
+    // 5) 读回结果覆盖原数据
+    err = clEnqueueReadBuffer(queue, buf, CL_TRUE, 0, target_size, target, 0, nullptr, nullptr);
+    clFinish(queue);
+
+    // 6) 更新 Stub 配置，与原 Encry 一致
+    pstub.pStubConf->textScnRVA = section->VirtualAddress;
+    pstub.pStubConf->textScnSize = target_size;
+    pstub.pStubConf->key = key;
+
+    // 7) 释放资源
+    clReleaseMemObject(buf);
+    clReleaseKernel(kernel);
+    clReleaseProgram(prog);
+    clReleaseCommandQueue(queue);
+    clReleaseContext(ctx);
+
+    return (err == CL_SUCCESS);
 }

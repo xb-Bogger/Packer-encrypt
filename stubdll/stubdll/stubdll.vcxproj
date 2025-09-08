@@ -108,6 +108,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <AdditionalIncludeDirectories>C:\Users\19266\Desktop\15Packing\OpenCL-SDK-v2025.07.23-Win-x86\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -160,6 +161,14 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="..\..\OpenCL-SDK-v2025.07.23-Win-x86\lib\OpenCL.lib" />
+    <Library Include="..\..\OpenCL-SDK-v2025.07.23-Win-x86\lib\OpenCLExt.lib" />
+    <Library Include="..\..\OpenCL-SDK-v2025.07.23-Win-x86\lib\OpenCLUtils.lib" />
+    <Library Include="..\..\OpenCL-SDK-v2025.07.23-Win-x86\lib\OpenCLUtilsCpp.lib" />
+    <Library Include="..\..\OpenCL-SDK-v2025.07.23-Win-x86\lib\OpenCLUtilsCppd.lib" />
+    <Library Include="..\..\OpenCL-SDK-v2025.07.23-Win-x86\lib\OpenCLUtilsd.lib" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

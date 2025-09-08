@@ -24,4 +24,24 @@
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
+  <ItemGroup>
+    <Library Include="..\..\OpenCL-SDK-v2025.07.23-Win-x86\lib\OpenCL.lib">
+      <Filter>头文件</Filter>
+    </Library>
+    <Library Include="..\..\OpenCL-SDK-v2025.07.23-Win-x86\lib\OpenCLExt.lib">
+      <Filter>头文件</Filter>
+    </Library>
+    <Library Include="..\..\OpenCL-SDK-v2025.07.23-Win-x86\lib\OpenCLUtils.lib">
+      <Filter>头文件</Filter>
+    </Library>
+    <Library Include="..\..\OpenCL-SDK-v2025.07.23-Win-x86\lib\OpenCLUtilsCpp.lib">
+      <Filter>头文件</Filter>
+    </Library>
+    <Library Include="..\..\OpenCL-SDK-v2025.07.23-Win-x86\lib\OpenCLUtilsCppd.lib">
+      <Filter>头文件</Filter>
+    </Library>
+    <Library Include="..\..\OpenCL-SDK-v2025.07.23-Win-x86\lib\OpenCLUtilsd.lib">
+      <Filter>头文件</Filter>
+    </Library>
+  </ItemGroup>
 </Project>

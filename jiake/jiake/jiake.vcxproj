@@ -105,6 +105,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>C:\Users\19266\Desktop\15Packing\OpenCL-SDK-v2025.07.23-Win-x86\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -146,6 +147,14 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="PE.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="..\..\OpenCL-SDK-v2025.07.23-Win-x86\lib\OpenCL.lib" />
+    <Library Include="..\..\OpenCL-SDK-v2025.07.23-Win-x86\lib\OpenCLExt.lib" />
+    <Library Include="..\..\OpenCL-SDK-v2025.07.23-Win-x86\lib\OpenCLUtils.lib" />
+    <Library Include="..\..\OpenCL-SDK-v2025.07.23-Win-x86\lib\OpenCLUtilsCpp.lib" />
+    <Library Include="..\..\OpenCL-SDK-v2025.07.23-Win-x86\lib\OpenCLUtilsCppd.lib" />
+    <Library Include="..\..\OpenCL-SDK-v2025.07.23-Win-x86\lib\OpenCLUtilsd.lib" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

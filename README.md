@@ -5,4 +5,5 @@ Compared to the previous version, the new version v2.0 uses GPU to execute encry
 The encryption method uses simple XOR encryption, which can be expanded to complex encryption methods such as AES.
 ## Compilation
 The compilation environment is VS2022(Release x86)
+
 Usage: ./jiake.exe \<inputfile> \<outputfile>

@@ -1,9 +1,8 @@
-# PE文件加密壳
-## 使用方法
-Visual Studio 2022 下 Release x86模式编译
-
-生成的执行程序文件在主目录的bin文件夹下
-## 加密壳
-对PE文件的text段进行异或加密(0x99)
-
+# GPU PACKER
+## Introduction
+Compared to the previous version, the new version v2.0 uses GPU to execute encryption routines. Using the OpenCL library to complete this work may cause a decrease in the speed of unpacking, but it can provide a new idea, which helps to introduce concurrent computing and avoid virtual environment analysis such as sandbox.
+## Encryption
+The encryption method uses simple XOR encryption, which can be expanded to complex encryption methods such as AES.
+## Compilation
+The compilation environment is VS2022(Release x86)
 Usage: ./jiake.exe \<inputfile> \<outputfile>
